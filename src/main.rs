@@ -93,7 +93,7 @@ fn main() -> std::io::Result<()> {
     // let next_byte: &mut u8 = &mut 128;
     let next_byte: &mut u8 = &mut 4;
     let insert_bits: &mut u16 = &mut 0;
-    let bit_size: &mut f32 = &mut 3.0;
+    let bit_size: &mut u32 = &mut 3;
     // let bits_in_next_byte: &mut u8 = &mut 7;
     let bits_in_next_byte: &mut u8 = &mut 3;
     let mut color_code = 0;
@@ -108,24 +108,26 @@ fn main() -> std::io::Result<()> {
                 .unwrap();
             code_table.push(ascii_data[index..=k].to_vec());
 
-            println!("{}", ((code_table.len() as f32).log2().floor() + 1.0));
-            println!("{}", *bit_size);
+            // println!("{}", ((code_table.len() as f32).log2().floor() + 1.0));
+            // println!("{}", *bit_size);
 
             *insert_bits = ((color_code) as u16) << *bits_in_next_byte as u16;
             *insert_bits = *insert_bits & 0xFF;
             *next_byte = *next_byte | (*insert_bits as u8);
 
             if (*bits_in_next_byte + *bit_size as u8) >= 8 {
-                code_stream.push(*next_byte);
-                if *next_byte == 0xDE {
-                    println!("break")
+                if *next_byte == 0xae {
+                    code_stream.push(0xde);
+                    println!("break");
+                } else {
+                    code_stream.push(*next_byte);
                 }
                 *bits_in_next_byte = (*bits_in_next_byte + *bit_size as u8) % 8;
                 *next_byte = color_code as u8 >> (*bit_size as u8 - *bits_in_next_byte);
             } else {
                 *bits_in_next_byte = *bits_in_next_byte + *bit_size as u8;
-                if ((code_table.len() as f32).log2().floor() + 1.0) > *bit_size {
-                    *bit_size = (code_table.len() as f32).log2().floor() + 1.0;
+                if (code_table.len() as u32) > 2u32.pow(*bit_size + 1u32) {
+                    *bit_size += 1;
                 }
             }
             index = k; 
