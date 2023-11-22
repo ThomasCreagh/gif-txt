@@ -80,7 +80,7 @@ fn main() -> std::io::Result<()> {
     ];
 
     let mut code_table: Vec<Vec<u8>> = Vec::new();
-    let mut image_data: Vec<u8> = vec![0x02, 0x16];
+    let image_data: Vec<u8> = vec![0x02, 0x16];
     let mut code_stream: Vec<u8> = Vec::new();
     // let testin: &mut [u8] = &mut code_stream as &mut [u8];
     // for i in 0..130 {
@@ -96,47 +96,87 @@ fn main() -> std::io::Result<()> {
     let bit_size: &mut u32 = &mut 3;
     // let bits_in_next_byte: &mut u8 = &mut 7;
     let bits_in_next_byte: &mut u8 = &mut 3;
-    let mut color_code = 0;
     let mut index: usize = 0;
 
     // decode the ascii_data into the image_data
     for k in 1..ascii_data.len() {
+        println!("{:?}", &ascii_data[index..=k]);
         if !code_table.contains(&ascii_data[index..=k].to_vec()) {
-            color_code = code_table
+            let color_code = code_table
                 .iter()
                 .position(|r| r == &ascii_data[index..k])
                 .unwrap();
+            println!("{}", color_code);
             code_table.push(ascii_data[index..=k].to_vec());
+            
+            if (code_table.len() as u32) - 1 == 2u32.pow(*bit_size) + 1u32 {
+                *bit_size += 1;
+            }
 
-            // println!("{}", ((code_table.len() as f32).log2().floor() + 1.0));
-            // println!("{}", *bit_size);
-
-            *insert_bits = ((color_code) as u16) << *bits_in_next_byte as u16;
+            *insert_bits = (color_code as u16) << *bits_in_next_byte as u16;
             *insert_bits = *insert_bits & 0xFF;
             *next_byte = *next_byte | (*insert_bits as u8);
 
             if (*bits_in_next_byte + *bit_size as u8) >= 8 {
-                if *next_byte == 0xae {
-                    code_stream.push(0xde);
-                    println!("break");
-                } else {
-                    code_stream.push(*next_byte);
+                code_stream.push(*next_byte);
+                if *next_byte == 0x91 {
+                    println!("break?");
                 }
+                println!("{:#0x}", *next_byte);
                 *bits_in_next_byte = (*bits_in_next_byte + *bit_size as u8) % 8;
                 *next_byte = color_code as u8 >> (*bit_size as u8 - *bits_in_next_byte);
             } else {
                 *bits_in_next_byte = *bits_in_next_byte + *bit_size as u8;
-                if (code_table.len() as u32) > 2u32.pow(*bit_size + 1u32) {
-                    *bit_size += 1;
-                }
             }
             index = k; 
         }
-    }
-    *next_byte = *next_byte << (8 - *bits_in_next_byte);
-    code_stream.push(*next_byte);
-    println!("{:#0x?}", code_stream);
+        if k == ascii_data.len() - 1 {
+            let color_code = code_table
+                .iter()
+                .position(|r| r == &ascii_data[index..=k])
+                .unwrap();
+            println!("{}", color_code);
 
+            if (code_table.len() as u32) - 1 == 2u32.pow(*bit_size) + 1u32 {
+                *bit_size += 1;
+            }
+
+            *insert_bits = (color_code as u16) << *bits_in_next_byte as u16;
+            *insert_bits = *insert_bits & 0xFF;
+            *next_byte = *next_byte | (*insert_bits as u8);
+
+            if (*bits_in_next_byte + *bit_size as u8) >= 8 {
+                code_stream.push(*next_byte);
+                println!("{:#0x}", *next_byte);
+                *bits_in_next_byte = (*bits_in_next_byte + *bit_size as u8) % 8;
+                *next_byte = color_code as u8 >> (*bit_size as u8 - *bits_in_next_byte);
+            } else {
+                *bits_in_next_byte = *bits_in_next_byte + *bit_size as u8;
+            }
+
+            let color_code = 5;
+
+            if (code_table.len() as u32) - 1 == 2u32.pow(*bit_size) + 1u32 {
+                *bit_size += 1;
+            }
+
+            *insert_bits = (color_code as u16) << *bits_in_next_byte as u16;
+            *insert_bits = *insert_bits & 0xFF;
+            *next_byte = *next_byte | (*insert_bits as u8);
+
+            if (*bits_in_next_byte + *bit_size as u8) >= 8 {
+                code_stream.push(*next_byte);
+                println!("{:#0x}", *next_byte);
+                *bits_in_next_byte = (*bits_in_next_byte + *bit_size as u8) % 8;
+                *next_byte = color_code as u8 >> (*bit_size as u8 - *bits_in_next_byte);
+                code_stream.push(*next_byte);
+            } else {
+                *bits_in_next_byte = *bits_in_next_byte + *bit_size as u8;
+                code_stream.push(*next_byte);
+            }
+        }
+    }
+    println!("{:#0x?}", code_stream);
     let total_write_bytes: &[u8] = &[
         image_header,
         logical_screen_discriptor,
